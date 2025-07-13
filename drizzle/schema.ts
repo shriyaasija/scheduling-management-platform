@@ -1,4 +1,6 @@
-import { boolean, index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { DAYS_OF_WEEK_IN_ORDER } from "@/constants";
+import { relations } from 'drizzle-orm';
+import { boolean, index, integer, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 const createdAt = timestamp("createdAt").notNull().defaultNow()
 const updatedAt = timestamp("updatedAt")
@@ -30,3 +32,37 @@ export const ScheduleTable = pgTable("schedules", {
     createdAt,
     updatedAt,
 })
+
+// one to many relationship
+export const scheduleRelations = relations(ScheduleTable, ({ many }) => ({
+    availabilites: many(ScheduleAvailabilityTable),
+}))
+
+export const scheduleDayOfWeekEnum = pgEnum("day", DAYS_OF_WEEK_IN_ORDER)
+
+export const ScheduleAvailabilityTable = pgTable(
+    "scheduleAvailabilities",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        scheduleId: uuid("scheduleId")
+            .notNull()
+            .references(() => ScheduleTable.id, { onDelete: "cascade"}),
+        startTime: text("startTime").notNull(),
+        endTime: text("endTime").notNull(),
+        dayOfWeek: scheduleDayOfWeekEnum("dayOfWeek").notNull(),
+    },
+    table => ([
+        index("scheduleIdIndex").on(table.scheduleId),
+    ])
+)
+
+// reverse relation 
+export const ScheduleAvailabilityRelations = relations(
+    ScheduleAvailabilityTable,
+    ({ one }) => ({
+        schedule: one(ScheduleTable, {
+            fields: [ScheduleAvailabilityTable.scheduleId],
+            references: [ScheduleTable.id],
+        }),
+    })
+)
